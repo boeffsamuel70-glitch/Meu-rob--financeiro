@@ -1,15 +1,15 @@
 import time
 import threading
+import os
 import yfinance as ticker_data
 import pandas as pd
 from flask import Flask
 
 # --- CONFIGURAÇÕES DO ROBÔ ---
-ATIVO = "EURUSD=X"  # Ativo que será analisado
-INTERVALO = "5m"    # Tempo gráfico
-PERIODO = "5d"      # Dados do dia atual
+ATIVO = "EURUSD=X"  # Configurado para Forex (Euro / Dólar)
+INTERVALO = "5m"    # Tempo gráfico de 5 minutos (melhor para Forex)
+PERIODO = "5d"      # Histórico de dados necessário
 
-# Servidor Web simples para manter o site gratuito ativo
 app = Flask(__name__)
 status_robo = "Iniciando..."
 
@@ -28,13 +28,13 @@ def calcular_estrategia(df):
     
     if (linha_anterior['Media_Curta'] <= linha_anterior['Media_Longa']) and \
        (ultima_linha['Media_Curta'] > ultima_linha['Media_Longa']):
-        return f"🟢 COMPRA a R$ {preco_atual:.2f}", preco_atual
+        return f"🟢 COMPRA a {preco_atual:.5f}", preco_atual
         
     elif (linha_anterior['Media_Curta'] >= linha_anterior['Media_Longa']) and \
          (ultima_linha['Media_Curta'] < ultima_linha['Media_Longa']):
-        return f"🔴 VENDA a R$ {preco_atual:.2f}", preco_atual
+        return f"🔴 VENDA a {preco_atual:.5f}", preco_atual
         
-    return f"⚪ AGUARDANDO (Preço: R$ {preco_atual:.2f})", preco_atual
+    return f"⚪ AGUARDANDO (Preço: {preco_atual:.5f})", preco_atual
 
 def loop_analise_mercado():
     global status_robo
@@ -66,5 +66,6 @@ def loop_analise_mercado():
 threading.Thread(target=loop_analise_mercado, daemon=True).start()
 
 if __name__ == "__main__":
-    # Roda o servidor web na porta exigida pela nuvem
-    app.run(host="0.0.0.0", port=8080)
+    # PEGA A PORTA AUTOMÁTICA DO RENDER OU USA A 10000 POR PADRÃO
+    porta = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=porta)
