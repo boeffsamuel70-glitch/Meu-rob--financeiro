@@ -1,19 +1,19 @@
 import time
 import threading
 import os
-import random
 import requests
+import random
 from flask import Flask, jsonify
 
-# --- 💱 MAPEAMENTO DOS ATIVOS REAIS ---
+# --- 💱 CONFIGURAÇÃO DOS ATIVOS REAIS ---
 ATIVOS_MAPA = {
-    "EURUSD": "EUR-USD",
+    "EURUSD": "USD-EUR",  # API entrega invertido (USD por 1 EUR)
     "USDJPY": "USD-JPY",
-    "GBPUSD": "GBP-USD",
-    "AUDUSD": "AUD-USD",
+    "GBPUSD": "USD-GBP",  # API entrega invertido (USD por 1 GBP)
+    "AUDUSD": "USD-AUD",  # API entrega invertido (USD por 1 AUD)
     "USDCAD": "USD-CAD",
     "USDCHF": "USD-CHF",
-    "NZDUSD": "NZD-USD",
+    "NZDUSD": "USD-NZD",  # API entrega invertido (USD por 1 NZD)
     "EURGBP": "EUR-GBP",
     "EURJPY": "EUR-JPY",
     "USDBRL": "USD-BRL"
@@ -21,7 +21,11 @@ ATIVOS_MAPA = {
 ATIVOS = list(ATIVOS_MAPA.keys())
 
 app = Flask(__name__)
-status_robo = {ativo: "Conectando ao feed oficial..." for ativo in ATIVOS}
+
+# Inicialização segura para mitigar telas de travamento
+status_robo = {}
+for ativo in ATIVOS:
+    status_robo[ativo] = f"⚪ AGUARDANDO (Carregando feed...) — às {time.strftime('%H:%M:%S')}"
 
 @app.route('/')
 def home():
@@ -32,7 +36,7 @@ def home():
         <title>IA Sinais Forex Real</title>
         <script>
             function atualizarDados() {
-                // O parâmetro '?t=' impede o navegador de congelar a tela com cache antigo
+                // Parâmetro anti-cache forçado para ignorar o histórico do navegador
                 fetch('/dados?t=' + new Date().getTime())
                     .then(response => response.json())
                     .then(data => {
@@ -47,7 +51,7 @@ def home():
                     })
                     .catch(error => console.log('Erro de sincronização:', error));
             }
-            // Força a atualização dos preços na tela a cada 3 segundos
+            // Ciclo de atualização de tela a cada 3 segundos
             setInterval(atualizarDados, 3000);
             window.onload = atualizarDados;
         </script>
@@ -72,8 +76,7 @@ def dados():
     return resposta
 
 def calcular_sinal():
-    # Algoritmo probabilístico de alta velocidade para gerar cruzamentos dinâmicos
-    sorteio = random.randint(1, 15)
+    sorteio = random.randint(1, 20)
     if sorteio == 1:
         return "🟢 COMPRA"
     elif sorteio == 2:
@@ -85,18 +88,22 @@ def loop_analise_mercado():
 
     while True:
         try:
-            # Puxa o lote de preços comerciais oficiais diretamente da API da AwesomeAPI
-            url = "https://awesomeapi.com.br" + ",".join(ATIVOS_MAPA.values())
+            # Requisição em lote unificada na API comercial estável
+            url = "https://economia.awesomeapi.com.br/json/last/" + ",".join(ATIVOS_MAPA.values())
             resposta = requests.get(url, timeout=10).json()
             
             for ativo in ATIVOS:
                 try:
-                    # Formata o nome da chave conforme entregue pela API (ex: EURUSD)
-                    chave_api = ativo + "D" if ativo == "USDBRL" else ATIVOS_MAPA[ativo].replace("-", "")
+                    chave_api = ATIVOS_MAPA[ativo].replace("-", "")
                     
                     if chave_api in resposta:
-                        # Extrai o preço real de oferta instantâneo (bid)
-                        preco_real = float(resposta[chave_api]["bid"])
+                        preco_bruto = float(resposta[chave_api]["bid"])
+                        
+                        # Aplica a inversão de matriz matemática para paridades com base em USD
+                        if ativo in ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD"]:
+                            preco_real = 1 / preco_bruto
+                        else:
+                            preco_real = preco_bruto
                         
                         sinal = calcular_sinal()
                         formato_preco = f"{preco_real:.5f}" if preco_real < 5 else f"{preco_real:.2f}"
@@ -110,10 +117,9 @@ def loop_analise_mercado():
         except Exception as e:
             print(f"Erro de conexão com o servidor de taxas: {e}")
             
-        # Atualiza a memória de dados reais a cada 5 segundos
         time.sleep(5)
 
-# Inicializa o fluxo contínuo em segundo plano
+# Inicialização assíncrona do monitoramento
 threading.Thread(target=loop_analise_mercado, daemon=True).start()
 
 if __name__ == "__main__":
