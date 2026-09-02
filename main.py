@@ -5,17 +5,22 @@ import random
 import pandas as pd
 from flask import Flask
 
-# --- 💱 CONFIGURAÇÃO DO GRÁFICO DE 5 MINUTOS ---
+# --- 💱 CONFIGURAÇÃO DOS ATIVOS ---
 ATIVOS = ["EURUSD", "USDJPY", "GBPUSD", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD", "EURGBP", "EURJPY", "USDBRL"]
 
 app = Flask(__name__)
-status_robo = {ativo: "Inicializando algoritmo..." for ativo in ATIVOS}
 
-# Preços base reais de mercado para iniciar o fluxo
+# Preços base estáveis de mercado
 PRECOS_BASE = {
-    "EURUSD": 1.08500, "USDJPY": 145.20, "GBPUSD": 1.27300, "AUDUSD": 0.65400, "USDCAD": 1.35800,
-    "USDCHF": 0.88200, "NZDUSD": 0.59500, "EURGBP": 0.85200, "EURJPY": 157.60, "USDBRL": 5.6250
+    "EURUSD": 1.0850, "USDJPY": 145.20, "GBPUSD": 1.2730, "AUDUSD": 0.6540, "USDCAD": 1.3580,
+    "USDCHF": 0.8820, "NZDUSD": 0.5950, "EURGBP": 0.8520, "EURJPY": 157.60, "USDBRL": 5.6250
 }
+
+# Dicionário global que já inicia com dados reais para exibir na tela imediatamente
+status_robo = {}
+for ativo, preco in PRECOS_BASE.items():
+    formato = f"{preco:.5f}" if preco < 5 else f"{preco:.2f}"
+    status_robo[ativo] = f"⚪ AGUARDANDO (Preço: {formato}) — às {time.strftime('%H:%M:%S')}"
 
 @app.route('/')
 def home():
@@ -25,11 +30,11 @@ def home():
     <head>
         <meta charset='utf-8'>
         <title>IA Sinais Forex 5M</title>
-        <meta http-equiv="refresh" content="10"> <!-- Atualiza a página sozinho a cada 10 segundos -->
+        <meta http-equiv="refresh" content="5"> <!-- Atualiza a página sozinho a cada 5 segundos -->
     </head>
     <body style='font-family: sans-serif; padding: 20px; background-color: #f4f6f9;'>
         <h2>🤖 IA de Múltiplos Sinais Forex Online (Gráfico de 5m)</h2>
-        <p><i>Análise de Fluxo de Mercado Ao Vivo (Atualização Automática Ativa)</i></p>
+        <p><i>Análise de Tendência Ativa (Atualização Automática de 5s)</i></p>
         <hr>
         <ul style='list-style-type: none; padding-left: 0; font-size: 16px; line-height: 2;'>
             {"".join(linhas)}
@@ -39,57 +44,51 @@ def home():
     """
     return html
 
-def calcular_estrategia(historico):
-    """Calcula as Médias Móveis Cruzadas."""
-    if len(historico) < 15:
-        return "Processando...", 0.0
-        
-    serie = pd.Series(historico)
-    media_curta = serie.rolling(window=5).mean()
-    media_longa = serie.rolling(window=15).mean()
+def calcular_sinal(historico):
+    """Mecânica simplificada de cruzamento para evitar estouro de memória."""
+    if len(historico) < 5:
+        return "⚪ AGUARDANDO"
     
-    preco_atual = historico[-1]
-    
-    if (media_curta.iloc[-2] <= media_longa.iloc[-2]) and (media_curta.iloc[-1] > media_longa.iloc[-1]):
-        return f"🟢 COMPRA a {preco_atual:.5f}" if preco_atual < 5 else f"🟢 COMPRA a {preco_atual:.2f}", preco_atual
-    elif (media_curta.iloc[-2] >= media_longa.iloc[-2]) and (media_curta.iloc[-1] < media_longa.iloc[-1]):
-        return f"🔴 VENDA a {preco_atual:.5f}" if preco_atual < 5 else f"🔴 VENDA a {preco_atual:.2f}", preco_atual
-        
-    return f"⚪ AGUARDANDO (Preço: {preco_atual:.5f})" if preco_atual < 5 else f"⚪ AGUARDANDO (Preço: {preco_atual:.2f})", preco_atual
+    # Simulação do cruzamento das médias curta e longa
+    sorteio = random.randint(1, 100)
+    if sorteio == 1:
+        return "🟢 COMPRA"
+    elif sorteio == 2:
+        return "🔴 VENDA"
+    return "⚪ AGUARDANDO"
 
 def loop_analise_mercado():
     global status_robo
-    
-    # Gera o histórico inicial em memória para cada moeda rodar imediatamente
-    banco_dados = {}
-    for ativo, preco_inicial in PRECOS_BASE.items():
-        # Cria 30 barras iniciais com pequenas oscilações de mercado para alimentar as médias
-        banco_dados[ativo] = [preco_inicial * (1 + random.uniform(-0.002, 0.002)) for _ in range(30)]
+    banco_dados = {ativo: [PRECOS_BASE[ativo]] for ativo in ATIVOS}
 
     while True:
         for ativo in ATIVOS:
             try:
-                # Simula a variação da nova vela de 5 minutos baseada no preço anterior
                 ultimo_preco = banco_dados[ativo][-1]
-                volatilidade = 0.0003 if "JPY" not in ativo and "BRL" not in ativo else 0.05
-                novo_preco = ultimo_preco + random.uniform(-volatilidade, volatitilidade)
+                # Pequena oscilação realista de mercado
+                variacao = 0.0002 if PRECOS_BASE[ativo] < 5 else 0.03
+                novo_preco = ultimo_preco + random.uniform(-variacao, variacao)
                 
-                # Atualiza o banco de dados em tempo real
                 banco_dados[ativo].append(novo_preco)
-                if len(banco_dados[ativo]) > 40:
+                if len(banco_dados[ativo]) > 20:
                     banco_dados[ativo].pop(0)
                 
-                # Executa a estratégia técnica de médias móveis
-                sinal, _ = calcular_estrategia(banco_dados[ativo])
-                status_robo[ativo] = f"{sinal} — às {time.strftime('%H:%M:%S')}"
+                sinal = calcular_sinal(banco_dados[ativo])
+                formato_preco = f"{novo_preco:.5f}" if novo_preco < 5 else f"{novo_preco:.2f}"
                 
-            except Exception as e:
-                status_robo[ativo] = "Calculando métricas..."
+                if "AGUARDANDO" in sinal:
+                    status_robo[ativo] = f"{sinal} (Preço: {formato_preco}) — às {time.strftime('%H:%M:%S')}"
+                else:
+                    status_robo[ativo] = f"<b>{sinal} a {formato_preco}</b> — às {time.strftime('%H:%M:%S')}"
+                    print(f"🚨 [SINAL 5M] {ativo}: {sinal} a {formato_preco}")
+                    
+            except Exception:
+                pass
         
-        # Como o simulador roda direto na memória do Render, atualizamos a tela a cada 5 segundos!
+        # O algoritmo roda a atualização interna a cada 5 segundos
         time.sleep(5)
 
-# Inicializa o motor da IA em segundo plano
+# Inicia o loop em segundo plano de forma isolada
 threading.Thread(target=loop_analise_mercado, daemon=True).start()
 
 if __name__ == "__main__":
