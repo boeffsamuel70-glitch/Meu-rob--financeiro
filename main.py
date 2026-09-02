@@ -111,7 +111,8 @@ def loop_analise_mercado():
                 if "AGUARDANDO" in sinal:
                     status_robo[nome_limpo] = f"{sinal} (Preço Real: {formato_preco}) — às {hora_brasilia}"
                 else:
-                    status_robo[nome_limpo] = f"<span style='color: white; background-color: " + ("green" if "COMPRA" in sinal else "red") + f"; padding: 2px 6px; border-radius: 4px;'><b>{sinal} a {formato_preco}</b></span> — às {hora_brasilia}"
+                    cor = "green" if "COMPRA" in sinal else "red"
+                    status_robo[nome_limpo] = f"<span style='color: white; background-color: {cor}; padding: 2px 6px; border-radius: 4px;'><b>{sinal} a {formato_preco}</b></span> — às {hora_brasilia}"
                 
                 # Pausa segura de 6 segundos entre os ativos
                 time.sleep(6.0)
