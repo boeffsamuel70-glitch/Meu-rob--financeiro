@@ -5,9 +5,9 @@ import pandas as pd
 from flask import Flask
 
 # --- CONFIGURAÇÕES DO ROBÔ ---
-ATIVO = "PETR4.SA"  # Ativo que será analisado
-INTERVALO = "1m"    # Tempo gráfico
-PERIODO = "1d"      # Dados do dia atual
+ATIVO = "EURUSD=X"  # Ativo que será analisado
+INTERVALO = "5m"    # Tempo gráfico
+PERIODO = "5d"      # Dados do dia atual
 
 # Servidor Web simples para manter o site gratuito ativo
 app = Flask(__name__)
